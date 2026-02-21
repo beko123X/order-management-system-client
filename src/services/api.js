@@ -1,8 +1,10 @@
 import axios from 'axios';
 
-// استخدم import.meta.env بدلاً من process.env
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://orders-backend.pxxl.click/api';
+const IMAGE_BASE_URL = 'https://orders-backend.pxxl.click';
+
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://orders-backend.pxxl.click/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   }
@@ -17,40 +19,69 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-
-// إضافة هذه الدالة في api.js
+// ===== IMAGE URL HELPER =====
+// في src/services/api.js - أضف هذه الدالة إذا لم تكن موجودة
 export const getImageUrl = (imagePath) => {
-  if (!imagePath) {
-    return 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\' viewBox=\'0 0 300 200\'%3E%3Crect width=\'300\' height=\'200\' fill=\'%23f3f4f6\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'system-ui\' font-size=\'16\' fill=\'%239ca3af\'%3ENo Image%3C/text%3E%3C/svg%3E';
-  }
-
+  if (!imagePath) return null;
+  
   // إذا كان المسار كامل (يبدأ بـ http)
   if (imagePath.startsWith('http')) {
+    // إذا كان localhost، استبدله بالرابط الحقيقي
+    if (imagePath.includes('localhost:5000')) {
+      return imagePath.replace('http://localhost:5000', 'https://orders-backend.pxxl.click');
+    }
     return imagePath;
   }
-
-  const baseURL = import.meta.env.VITE_BASE_URL || 'https://orders-backend.pxxl.click';
-
-  // تنظيف المسار
-  let cleanPath = imagePath;
   
-  // إزالة /uploads إذا كان موجوداً في البداية
-  if (cleanPath.startsWith('/uploads')) {
-    cleanPath = cleanPath;
-  } else if (cleanPath.startsWith('uploads/')) {
-    cleanPath = `/${cleanPath}`;
-  } else {
-    cleanPath = `/uploads/${cleanPath}`;
+  // إذا كان المسار يبدأ بـ /uploads
+  if (imagePath.startsWith('/uploads')) {
+    return `https://orders-backend.pxxl.click${imagePath}`;
   }
-
-  // إزالة أي تكرار في /uploads
-  cleanPath = cleanPath.replace(/\/+/g, '/');
   
-  const fullUrl = `${baseURL}${cleanPath}`;
-  console.log('🖼️ Generated image URL:', fullUrl);
-  
-  return fullUrl;
+  // إذا كان المسار اسم ملف فقط
+  return `https://orders-backend.pxxl.click/uploads/${imagePath}`;
 };
+
+// Interceptor لمعالجة Responses
+API.interceptors.response.use(
+  (response) => {
+    // معالجة URLs في الـ response data
+    if (response.data && typeof response.data === 'object') {
+      const processUrls = (obj) => {
+        if (!obj || typeof obj !== 'object') return obj;
+        
+        Object.keys(obj).forEach(key => {
+          // إذا كان المفتاح image أو images أو صورة
+          if (key.toLowerCase().includes('image') || key.toLowerCase().includes('img')) {
+            if (typeof obj[key] === 'string') {
+              obj[key] = getImageUrl(obj[key]);
+            }
+          }
+          // إذا كان مصفوفة صور
+          else if (Array.isArray(obj[key])) {
+            obj[key] = obj[key].map(item => {
+              if (typeof item === 'string' && item.includes('localhost')) {
+                return getImageUrl(item);
+              }
+              return item;
+            });
+          }
+          // recursion للكائنات الداخلية
+          else if (obj[key] && typeof obj[key] === 'object') {
+            obj[key] = processUrls(obj[key]);
+          }
+        });
+        return obj;
+      };
+      
+      response.data = processUrls(response.data);
+    }
+    return response;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
 
 // ===== AUTH ENDPOINTS =====
 export const authAPI = {

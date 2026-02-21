@@ -1,22 +1,22 @@
 // src/pages/admin/AdminProducts.jsx
 import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, Search } from 'lucide-react';
-import { productAPI } from '../../services/api';
+import { productAPI, getImageUrl } from '../../services/api'; // ✅ استيراد getImageUrl
 import LoadingSpinner from '../../components/layout/LoadingSpinner';
 import ProductModal from './ProductModal';
 
-// ✅ API Base URL
-const API_BASE_URL = 'http://localhost:5000';
+// ✅ API Base URL من المتغيرات البيئية
+const API_BASE_URL = import.meta.env.VITE_BASE_URL || 'https://orders-backend.pxxl.click';
 
 // ✅ Default image
 const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'100\' height=\'100\' viewBox=\'0 0 100 100\'%3E%3Crect width=\'100\' height=\'100\' fill=\'%23f3f4f6\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'system-ui\' font-size=\'12\' fill=\'%239ca3af\'%3ENo Image%3C/text%3E%3C/svg%3E';
 
-// ✅ Function to get full image URL
+// ✅ Function to get full image URL (محسنة)
 const getFullImageUrl = (imageUrl) => {
   if (!imageUrl) return null;
-  if (imageUrl.startsWith('http')) return imageUrl;
-  if (imageUrl.startsWith('/')) return API_BASE_URL + imageUrl;
-  return API_BASE_URL + '/' + imageUrl;
+  
+  // استخدام الدالة من api.js
+  return getImageUrl(imageUrl);
 };
 
 const AdminProducts = () => {
@@ -50,7 +50,7 @@ const AdminProducts = () => {
       // ✅ Process products with full image URLs
       const productsWithImages = data.products.map(product => ({
         ...product,
-        fullImageUrl: getFullImageUrl(product.imageUrl)
+        fullImageUrl: getFullImageUrl(product.image || product.imageUrl)
       }));
       
       setProducts(productsWithImages || []);
@@ -103,7 +103,12 @@ const AdminProducts = () => {
   };
 
   const handleImageError = (productId) => {
+    console.warn(`❌ Image failed to load for product ${productId}`);
     setImageErrors(prev => ({ ...prev, [productId]: true }));
+  };
+
+  const handleImageLoad = (productId, url) => {
+    console.log(`✅ Image loaded for product ${productId}:`, url);
   };
 
   if (loading && products.length === 0) {
@@ -166,9 +171,10 @@ const AdminProducts = () => {
               </tr>
             ) : (
               products.map((product) => {
+                // ✅ استخدام fullImageUrl أو إنشاء URL جديد
                 const imageUrl = imageErrors[product._id] 
                   ? DEFAULT_IMAGE 
-                  : (product.fullImageUrl || DEFAULT_IMAGE);
+                  : (product.fullImageUrl || getFullImageUrl(product.image || product.imageUrl) || DEFAULT_IMAGE);
                 
                 return (
                   <tr key={product._id} className="border-b hover:bg-gray-50">
@@ -180,7 +186,7 @@ const AdminProducts = () => {
                             alt={product.name}
                             className="w-full h-full object-cover"
                             onError={() => handleImageError(product._id)}
-                            onLoad={() => console.log('✅ Image loaded:', product.fullImageUrl)}
+                            onLoad={() => handleImageLoad(product._id, imageUrl)}
                           />
                         </div>
                         <div>
