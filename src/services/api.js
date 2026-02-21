@@ -19,28 +19,52 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-// ===== IMAGE URL HELPER =====
-// في src/services/api.js - أضف هذه الدالة إذا لم تكن موجودة
+
+// في src/services/api.js - أضف/حدث هذه الدالة
 export const getImageUrl = (imagePath) => {
-  if (!imagePath) return null;
-  
+  if (!imagePath) {
+    console.log('⚠️ No image path provided');
+    return null;
+  }
+
+  console.log('🖼️ Original image path:', imagePath);
+
   // إذا كان المسار كامل (يبدأ بـ http)
   if (imagePath.startsWith('http')) {
     // إذا كان localhost، استبدله بالرابط الحقيقي
-    if (imagePath.includes('localhost:5000')) {
-      return imagePath.replace('http://localhost:5000', 'https://orders-backend.pxxl.click');
+    if (imagePath.includes('localhost')) {
+      const fixedUrl = imagePath.replace(/http:\/\/localhost:\d+/, 'https://orders-backend.pxxl.click');
+      console.log('✅ Fixed localhost URL:', fixedUrl);
+      return fixedUrl;
     }
+    console.log('✅ Using full URL:', imagePath);
     return imagePath;
   }
+
+  const baseURL = 'https://orders-backend.pxxl.click';
   
-  // إذا كان المسار يبدأ بـ /uploads
-  if (imagePath.startsWith('/uploads')) {
-    return `https://orders-backend.pxxl.click${imagePath}`;
+  // تنظيف المسار
+  let cleanPath = imagePath;
+  
+  // إزالة أي تكرار في /uploads
+  if (cleanPath.startsWith('/uploads')) {
+    cleanPath = cleanPath;
+  } else if (cleanPath.startsWith('uploads/')) {
+    cleanPath = `/${cleanPath}`;
+  } else if (!cleanPath.startsWith('/')) {
+    cleanPath = `/uploads/${cleanPath}`;
   }
+
+  // إزالة الـ slashes المتكررة
+  cleanPath = cleanPath.replace(/\/+/g, '/');
   
-  // إذا كان المسار اسم ملف فقط
-  return `https://orders-backend.pxxl.click/uploads/${imagePath}`;
+  const fullUrl = `${baseURL}${cleanPath}`;
+  console.log('✅ Generated image URL:', fullUrl);
+  
+  return fullUrl;
 };
+
+
 
 // Interceptor لمعالجة Responses
 API.interceptors.response.use(

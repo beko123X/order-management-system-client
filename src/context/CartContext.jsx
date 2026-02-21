@@ -13,7 +13,6 @@ export const useCart = () => {
 
 export const CartProvider = ({ children }) => {
   const [cartItems, setCartItems] = useState([]);
-  const [cartTotal, setCartTotal] = useState(0);
 
   // Load cart from localStorage on mount
   useEffect(() => {
@@ -26,12 +25,6 @@ export const CartProvider = ({ children }) => {
   // Save cart to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('cart', JSON.stringify(cartItems));
-    
-    // Calculate total
-    const total = cartItems.reduce((sum, item) => {
-      return sum + (item.price * item.quantity);
-    }, 0);
-    setCartTotal(total);
   }, [cartItems]);
 
   const addToCart = (product, quantity = 1) => {
@@ -39,7 +32,6 @@ export const CartProvider = ({ children }) => {
       const existingItem = prevItems.find(item => item._id === product._id);
       
       if (existingItem) {
-        // Update quantity if item exists
         return prevItems.map(item =>
           item._id === product._id
             ? { ...item, quantity: item.quantity + quantity }
@@ -47,14 +39,7 @@ export const CartProvider = ({ children }) => {
         );
       }
       
-      // Add new item
-      return [...prevItems, {
-        _id: product._id,
-        name: product.name,
-        price: product.price,
-        quantity,
-        stock: product.stock
-      }];
+      return [...prevItems, { ...product, quantity }];
     });
   };
 
@@ -63,7 +48,7 @@ export const CartProvider = ({ children }) => {
   };
 
   const updateQuantity = (productId, quantity) => {
-    if (quantity < 1) {
+    if (quantity <= 0) {
       removeFromCart(productId);
       return;
     }
@@ -79,14 +64,22 @@ export const CartProvider = ({ children }) => {
     setCartItems([]);
   };
 
+  const getCartTotal = () => {
+    return cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
+  };
+
+  const getCartCount = () => {
+    return cartItems.reduce((count, item) => count + item.quantity, 0);
+  };
+
   const value = {
     cartItems,
-    cartTotal,
-    cartCount: cartItems.length,
     addToCart,
     removeFromCart,
     updateQuantity,
     clearCart,
+    getCartTotal,
+    getCartCount
   };
 
   return (

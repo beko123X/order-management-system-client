@@ -2,13 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Minus, Plus, AlertCircle } from 'lucide-react';
-import { productAPI } from '../services/api';
+import { productAPI, getImageUrl } from '../services/api'; // ✅ استيراد getImageUrl
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import LoadingSpinner from '../components/layout/LoadingSpinner';
-
-// ✅ API Base URL
-const API_BASE_URL = 'http://localhost:5000';
 
 // ✅ Default image (Base64)
 const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'500\' height=\'500\' viewBox=\'0 0 500 500\'%3E%3Crect width=\'500\' height=\'500\' fill=\'%23f3f4f6\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'system-ui\' font-size=\'20\' fill=\'%239ca3af\'%3ENo Image Available%3C/text%3E%3C/svg%3E';
@@ -34,24 +31,6 @@ const ProductDetails = () => {
     fetchProduct();
   }, [id]);
 
-  // ✅ Function to get full image URL
-  const getFullImageUrl = (imageUrl) => {
-    if (!imageUrl) return null;
-    
-    // If it's already a full URL
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-    
-    // If it's a relative URL starting with /
-    if (imageUrl.startsWith('/')) {
-      return API_BASE_URL + imageUrl;
-    }
-    
-    // If it's without slash
-    return API_BASE_URL + '/' + imageUrl;
-  };
-
   const fetchProduct = async () => {
     try {
       setLoading(true);
@@ -59,16 +38,17 @@ const ProductDetails = () => {
       
       console.log('📦 Product data received:', data);
       
-      // ✅ Process image URL
-      const fullImageUrl = getFullImageUrl(data.product?.imageUrl || data.imageUrl);
-      console.log('🖼️ Full image URL:', fullImageUrl);
+      const productData = data.product || data;
       
-      // ✅ Set image URL
-      if (fullImageUrl) {
+      // ✅ Process image URL using the imported function
+      const productImage = productData.image || productData.imageUrl;
+      if (productImage) {
+        const fullImageUrl = getImageUrl(productImage);
+        console.log('🖼️ Full image URL:', fullImageUrl);
         setImageUrl(fullImageUrl);
       }
       
-      setProduct(data.product || data);
+      setProduct(productData);
     } catch (error) {
       setError('Failed to load product details');
       console.error('❌ Error fetching product:', error);
@@ -86,22 +66,42 @@ const ProductDetails = () => {
 
   const handleAddToCart = () => {
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate('/login', { state: { from: `/products/${id}` } });
       return;
     }
     
     setAddingToCart(true);
-    addToCart(product, quantity);
+    
+    // ✅ إضافة المنتج إلى السلة مع الكمية المحددة
+    addToCart({
+      _id: product._id,
+      name: product.name,
+      price: product.price,
+      image: product.image || product.imageUrl,
+      stock: product.stock
+    }, quantity);
+    
+    // ✅ إظهار رسالة نجاح
+    alert(`✅ Added ${quantity} x ${product.name} to cart`);
+    
     setTimeout(() => setAddingToCart(false), 500);
   };
 
   const handleBuyNow = () => {
     if (!isAuthenticated) {
-      navigate('/login');
+      navigate('/login', { state: { from: `/products/${id}` } });
       return;
     }
     
-    addToCart(product, quantity);
+    // ✅ إضافة المنتج إلى السلة ثم التوجه للدفع
+    addToCart({
+      _id: product._id,
+      name: product.name,
+      price: product.price,
+      image: product.image || product.imageUrl,
+      stock: product.stock
+    }, quantity);
+    
     navigate('/checkout');
   };
 
@@ -144,7 +144,7 @@ const ProductDetails = () => {
         {/* Back Button */}
         <button
           onClick={() => navigate('/products')}
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4 mr-2" />
           Back to Products
@@ -155,7 +155,7 @@ const ProductDetails = () => {
             {/* Product Image Section */}
             <div className="bg-gray-100 p-8 flex items-center justify-center relative min-h-[400px]">
               {imageLoading && !imageError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
                 </div>
               )}
@@ -214,11 +214,11 @@ const ProductDetails = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Quantity
                   </label>
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3 rtl:space-x-reverse">
                     <button
                       onClick={() => handleQuantityChange(-1)}
                       disabled={quantity <= 1}
-                      className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                       <Minus className="h-4 w-4" />
                     </button>
@@ -226,7 +226,7 @@ const ProductDetails = () => {
                     <button
                       onClick={() => handleQuantityChange(1)}
                       disabled={quantity >= product.stock}
-                      className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
                     >
                       <Plus className="h-4 w-4" />
                     </button>
@@ -241,7 +241,7 @@ const ProductDetails = () => {
                   disabled={product.stock === 0 || addingToCart}
                   className="flex-1 flex items-center justify-center px-6 py-3 border-2 border-blue-600 text-blue-600 font-semibold rounded-lg hover:bg-blue-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  <ShoppingCart className="h-5 w-5 ml-2 rtl:ml-0 rtl:mr-2" />
                   {addingToCart ? 'Adding...' : 'Add to Cart'}
                 </button>
                 
@@ -253,6 +253,18 @@ const ProductDetails = () => {
                   Buy Now
                 </button>
               </div>
+
+              {/* Login Prompt for non-authenticated users */}
+              {!isAuthenticated && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-sm text-yellow-700">
+                    Please <button 
+                      onClick={() => navigate('/login', { state: { from: `/products/${id}` } })}
+                      className="text-blue-600 hover:underline font-medium"
+                    >login</button> to add items to cart
+                  </p>
+                </div>
+              )}
 
               {/* Additional Info */}
               <div className="mt-8 pt-8 border-t">
