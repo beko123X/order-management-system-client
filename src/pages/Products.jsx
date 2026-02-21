@@ -1,12 +1,11 @@
 // src/pages/Products.jsx
 import React, { useState, useEffect } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import { productAPI } from '../services/api';
+import { productAPI, getImageUrl } from '../services/api'; // ✅ استيراد getImageUrl
 import ProductCard from '../components/products/ProductCard';
 import LoadingSpinner from '../components/layout/LoadingSpinner';
 
-// ✅ الرابط الأساسي للـ Backend
-const API_BASE_URL = 'http://localhost:5000';
+// ✅ إزالة API_BASE_URL المحلي
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -28,23 +27,7 @@ const Products = () => {
     fetchProducts();
   }, [filters.page]);
 
-  // ✅ دالة مساعدة لبناء رابط الصورة الكامل
-  const getFullImageUrl = (imageUrl) => {
-    if (!imageUrl) return null;
-    
-    // إذا كان الرابط كامل (يبدأ بـ http)
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-    
-    // إذا كان الرابط نسبي (يبدأ بـ /)
-    if (imageUrl.startsWith('/')) {
-      return API_BASE_URL + imageUrl;
-    }
-    
-    // إذا كان الرابط بدون slash
-    return API_BASE_URL + '/' + imageUrl;
-  };
+  // ✅ إزالة دالة getFullImageUrl المحلية
 
   const fetchProducts = async () => {
     try {
@@ -57,21 +40,23 @@ const Products = () => {
       
       const { data } = await productAPI.getAll(params);
       
-      // ✅ معالجة المنتجات وإضافة رابط الصورة الكامل
+      // ✅ للتحقق - طباعة البيانات في Console
+      console.log('📦 Products received:', data.products);
+      
+      // ✅ معالجة المنتجات - استخدام getImageUrl من api.js
       const productsWithImages = data.products.map(product => ({
         ...product,
-        // إضافة الرابط الكامل للصورة
-        fullImageUrl: getFullImageUrl(product.imageUrl),
-        // الاحتفاظ بالرابط الأصلي
-        originalImageUrl: product.imageUrl
+        // استخدام getImageUrl لمعالجة رابط الصورة
+        imageUrl: getImageUrl(product.imageUrl || product.image),
+        // الاحتفاظ بالبيانات الأصلية
+        originalImageUrl: product.imageUrl || product.image
       }));
 
       // ✅ للتحقق - طباعة الروابط في Console
-      console.log('📦 Products received:', productsWithImages.length);
       productsWithImages.forEach(product => {
         console.log(`🖼️ ${product.name}:`, {
           original: product.originalImageUrl,
-          full: product.fullImageUrl
+          processed: product.imageUrl
         });
       });
 
