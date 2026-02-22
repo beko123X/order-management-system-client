@@ -24,20 +24,20 @@ API.interceptors.request.use((req) => {
 export const getImageUrl = (imageUrl) => {
   if (!imageUrl) return null;
   
-  // إذا كان الرابط من Cloudinary، استخدمه مباشرة
-  if (imageUrl.includes('cloudinary.com')) {
-    return imageUrl;
+  // إذا كان المسار يبدأ بـ E:/ (مسار محلي)
+  if (imageUrl.startsWith('E:/')) {
+    // استخراج اسم الملف فقط
+    const filename = imageUrl.split('\\').pop().split('/').pop();
+    return `https://orders-backend.pxxl.click/uploads/${filename}`;
   }
   
-  // إذا كان رابطاً كاملاً، استخدمه
-  if (imageUrl.startsWith('http')) {
-    return imageUrl;
+  // إذا كان المسار يبدأ بـ /uploads
+  if (imageUrl.startsWith('/uploads')) {
+    return `https://orders-backend.pxxl.click${imageUrl}`;
   }
   
-  // إذا كان رابطاً محلياً، حوله لرابط الخادم
-  return `https://orders-backend.pxxl.click${imageUrl}`;
+  return imageUrl;
 };
-
 
 
 // Interceptor لمعالجة Responses

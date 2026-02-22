@@ -1,51 +1,29 @@
+// src/components/common/ProductImage.jsx
 import React, { useState, useEffect } from 'react';
+import { getImageUrl } from '../../services/api';
 
-// صور Placeholder مختلفة الأحجام
-const PLACEHOLDERS = {
-  small: 'https://via.placeholder.com/150x150?text=Product',
-  medium: 'https://via.placeholder.com/300x200?text=Product+Image',
-  large: 'https://via.placeholder.com/500x500?text=Product',
-  default: 'https://via.placeholder.com/300x200?text=No+Image'
-};
+const DEFAULT_IMAGE = 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'200\' viewBox=\'0 0 300 200\'%3E%3Crect width=\'300\' height=\'200\' fill=\'%23f3f4f6\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' font-family=\'system-ui\' font-size=\'16\' fill=\'%239ca3af\'%3ENo Image%3C/text%3E%3C/svg%3E';
 
-const ProductImage = ({ src, alt, className, onClick }) => {
-  const [imgSrc, setImgSrc] = useState(PLACEHOLDERS.default);
+const ProductImage = ({ src, alt, className }) => {
+  const [imgSrc, setImgSrc] = useState(DEFAULT_IMAGE);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!src) {
-      setImgSrc(PLACEHOLDERS.default);
-      setLoading(false);
-      return;
+    if (src) {
+      const fixedUrl = getImageUrl(src);
+      console.log('🖼️ Loading image:', fixedUrl);
+      setImgSrc(fixedUrl);
     }
-
-    // محاولة تحميل الصورة من الخادم
-    setImgSrc(src);
+    setLoading(false);
   }, [src]);
 
   const handleError = () => {
-    console.log('⚠️ Using placeholder for image');
-    // اختيار placeholder مناسب حسب حجم الصورة
-    if (className?.includes('h-96')) {
-      setImgSrc(PLACEHOLDERS.large);
-    } else if (className?.includes('h-48')) {
-      setImgSrc(PLACEHOLDERS.medium);
-    } else {
-      setImgSrc(PLACEHOLDERS.small);
-    }
-    setLoading(false);
-  };
-
-  const handleLoad = () => {
-    setLoading(false);
+    console.log('❌ Using default image');
+    setImgSrc(DEFAULT_IMAGE);
   };
 
   if (loading) {
-    return (
-      <div className={`${className} bg-gray-200 animate-pulse flex items-center justify-center`}>
-        <span className="text-gray-400">جاري التحميل...</span>
-      </div>
-    );
+    return <div className={`${className} bg-gray-200 animate-pulse`} />;
   }
 
   return (
@@ -54,8 +32,6 @@ const ProductImage = ({ src, alt, className, onClick }) => {
       alt={alt || 'Product'}
       className={className}
       onError={handleError}
-      onLoad={handleLoad}
-      onClick={onClick}
       loading="lazy"
     />
   );
