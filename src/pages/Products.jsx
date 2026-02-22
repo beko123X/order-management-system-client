@@ -39,7 +39,8 @@ const Products = () => {
       params.page = filters.page;
       
       const { data } = await productAPI.getAll(params);
-      
+      // بعد استلام البيانات
+console.log('🛒 First product data:', data.products[0]);
       // ✅ للتحقق - طباعة البيانات في Console
       console.log('📦 Products received:', data.products);
       

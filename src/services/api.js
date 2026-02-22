@@ -21,47 +21,21 @@ API.interceptors.request.use((req) => {
 
 
 // في src/services/api.js - أضف/حدث هذه الدالة
-export const getImageUrl = (imagePath) => {
-  if (!imagePath) {
-    console.log('⚠️ No image path provided');
-    return null;
+export const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  
+  // إذا كان الرابط من Cloudinary، استخدمه مباشرة
+  if (imageUrl.includes('cloudinary.com')) {
+    return imageUrl;
   }
-
-  console.log('🖼️ Original image path:', imagePath);
-
-  // إذا كان المسار كامل (يبدأ بـ http)
-  if (imagePath.startsWith('http')) {
-    // إذا كان localhost، استبدله بالرابط الحقيقي
-    if (imagePath.includes('localhost')) {
-      const fixedUrl = imagePath.replace(/http:\/\/localhost:\d+/, 'https://orders-backend.pxxl.click');
-      console.log('✅ Fixed localhost URL:', fixedUrl);
-      return fixedUrl;
-    }
-    console.log('✅ Using full URL:', imagePath);
-    return imagePath;
+  
+  // إذا كان رابطاً كاملاً، استخدمه
+  if (imageUrl.startsWith('http')) {
+    return imageUrl;
   }
-
-  const baseURL = 'https://orders-backend.pxxl.click';
   
-  // تنظيف المسار
-  let cleanPath = imagePath;
-  
-  // إزالة أي تكرار في /uploads
-  if (cleanPath.startsWith('/uploads')) {
-    cleanPath = cleanPath;
-  } else if (cleanPath.startsWith('uploads/')) {
-    cleanPath = `/${cleanPath}`;
-  } else if (!cleanPath.startsWith('/')) {
-    cleanPath = `/uploads/${cleanPath}`;
-  }
-
-  // إزالة الـ slashes المتكررة
-  cleanPath = cleanPath.replace(/\/+/g, '/');
-  
-  const fullUrl = `${baseURL}${cleanPath}`;
-  console.log('✅ Generated image URL:', fullUrl);
-  
-  return fullUrl;
+  // إذا كان رابطاً محلياً، حوله لرابط الخادم
+  return `https://orders-backend.pxxl.click${imageUrl}`;
 };
 
 
