@@ -1,10 +1,8 @@
+// src/services/api.js
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://orders-backend.pxxl.click/api';
-const IMAGE_BASE_URL = 'https://orders-backend.pxxl.click';
-
 const API = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: 'https://orders-backend.pxxl.click/api',
   headers: {
     'Content-Type': 'application/json',
   }
@@ -19,72 +17,46 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-
-// في src/services/api.js - أضف/حدث هذه الدالة
+// ===== دالة معالجة الصور =====
 export const getImageUrl = (imageUrl) => {
-  if (!imageUrl) return null;
-  
-  // إذا كان المسار يبدأ بـ E:/ (مسار محلي)
-  if (imageUrl.startsWith('E:/')) {
-    // استخراج اسم الملف فقط
+  if (!imageUrl) {
+    return 'https://via.placeholder.com/300x200/3b82f6/ffffff?text=No+Image';
+  }
+
+  console.log('Original image path:', imageUrl);
+
+  // الحالة 1: إذا كان المسار من النوع E:/js dev/...
+  if (imageUrl.startsWith('E:')) {
     const filename = imageUrl.split('\\').pop().split('/').pop();
+    console.log('Extracted filename:', filename);
     return `https://orders-backend.pxxl.click/uploads/${filename}`;
   }
-  
-  // إذا كان المسار يبدأ بـ /uploads
+
+  // الحالة 2: إذا كان المسار يبدأ بـ /uploads
   if (imageUrl.startsWith('/uploads')) {
-    return `https://orders-backend.pxxl.click${imageUrl}`;
+    const filename = imageUrl.split('/').pop();
+    return `https://orders-backend.pxxl.click/uploads/${filename}`;
   }
-  
-  return imageUrl;
+
+  // الحالة 3: إذا كان رابط كامل (http)
+  if (imageUrl.startsWith('http')) {
+    return imageUrl;
+  }
+
+  // الحالة 4: إذا كان اسم ملف فقط
+  return `https://orders-backend.pxxl.click/uploads/${imageUrl}`;
 };
 
-
-// Interceptor لمعالجة Responses
-API.interceptors.response.use(
-  (response) => {
-    // معالجة URLs في الـ response data
-    if (response.data && typeof response.data === 'object') {
-      const processUrls = (obj) => {
-        if (!obj || typeof obj !== 'object') return obj;
-        
-        Object.keys(obj).forEach(key => {
-          // إذا كان المفتاح image أو images أو صورة
-          if (key.toLowerCase().includes('image') || key.toLowerCase().includes('img')) {
-            if (typeof obj[key] === 'string') {
-              obj[key] = getImageUrl(obj[key]);
-            }
-          }
-          // إذا كان مصفوفة صور
-          else if (Array.isArray(obj[key])) {
-            obj[key] = obj[key].map(item => {
-              if (typeof item === 'string' && item.includes('localhost')) {
-                return getImageUrl(item);
-              }
-              return item;
-            });
-          }
-          // recursion للكائنات الداخلية
-          else if (obj[key] && typeof obj[key] === 'object') {
-            obj[key] = processUrls(obj[key]);
-          }
-        });
-        return obj;
-      };
-      
-      response.data = processUrls(response.data);
-    }
-    return response;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// ===== AUTH ENDPOINTS =====
-export const authAPI = {
-  register: (userData) => API.post('/auth/register', userData),
-  login: (credentials) => API.post('/auth/login', credentials),
+// ===== ORDER ENDPOINTS =====
+export const orderAPI = {
+  getAll: (params) => API.get('/orders', { params }),
+  getOne: (id) => API.get(`/orders/${id}`),
+  getMyOrders: () => API.get('/orders/myorders'),
+  create: (orderData) => API.post('/orders', orderData),
+  updateStatus: (id, status) => API.put(`/orders/${id}/status`, { status }),
+  cancel: (id) => API.put(`/orders/${id}/cancel`),
+  pay: (id, paymentMethod) => API.post(`/orders/${id}/pay`, { paymentMethod }),
+  getStats: () => API.get('/orders/stats'),
 };
 
 // ===== PRODUCT ENDPOINTS =====
@@ -100,20 +72,10 @@ export const productAPI = {
   delete: (id) => API.delete(`/products/${id}`),
 };
 
-// ===== ORDER ENDPOINTS =====
-export const orderAPI = {
-  create: (orderData) => API.post('/orders', orderData),
-  getMyOrders: () => API.get('/orders/myorders'),
-  getAll: (params) => API.get('/orders', { params }),
-  updateStatus: (id, status) => API.put(`/orders/${id}/status`, { status }),
-  cancel: (id) => API.put(`/orders/${id}/cancel`),
-  pay: (id, paymentMethod) => API.post(`/orders/${id}/pay`, { paymentMethod }),
-};
-
-// ===== PAYMENT ENDPOINTS =====
-export const paymentAPI = {
-  createIntent: (orderId) => API.post('/payments/stripe/create-intent', { orderId }),
-  refund: (orderId) => API.put(`/payments/refund/${orderId}`),
+// ===== AUTH ENDPOINTS =====
+export const authAPI = {
+  register: (userData) => API.post('/auth/register', userData),
+  login: (credentials) => API.post('/auth/login', credentials),
 };
 
 // ===== USER ENDPOINTS =====
@@ -123,6 +85,12 @@ export const userAPI = {
   updateRole: (id, data) => API.put(`/users/${id}/role`, data),
   delete: (id) => API.delete(`/users/${id}`),
   getStats: () => API.get('/users/stats'),
+};
+
+// ===== PAYMENT ENDPOINTS =====
+export const paymentAPI = {
+  createIntent: (orderId) => API.post('/payments/stripe/create-intent', { orderId }),
+  refund: (orderId) => API.put(`/payments/refund/${orderId}`),
 };
 
 export default API;
